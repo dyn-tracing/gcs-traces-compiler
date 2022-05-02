@@ -1,0 +1,29 @@
+[package]
+name = "gcs-traces-compiler"
+version = "0.1.0"
+authors = ["Anirudh Sivaraman <sk.anirudh@gmail.com>", "Jessica Berg <jb7399@nyu.edu>", "Fabian Ruffy <fruffy@nyu.edu>"]
+edition = "2018"
+
+[dependencies]
+log = "*"
+env_logger = "0.6.*"
+clap = "~2.27.0"
+handlebars = "3.1.0"
+lazy_static = "1.4.0"
+regex = "0.2.2"
+serde = { version = "1.0", features = ["derive"] }
+strum = "0.19"
+strum_macros = "0.19"
+indexmap = { version = "1.6.1", features = ["serde-1"] }
+antlr-rust = { path = "./libs/antlr4rust" }
+input-stream = "0.3.0"
+
+[dev-dependencies]
+test-case = "1.1.0"
+assert_cmd = "1.0.2"
+predicates = "1.0.6"
+diffy = "*"
+
+[[bin]]
+name = "gcs-traces-compiler"
+path = "src/main.rs"

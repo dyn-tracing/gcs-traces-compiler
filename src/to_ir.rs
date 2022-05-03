@@ -109,22 +109,12 @@ impl<'i> CypherVisitor<'i> for PropertyAndUdfVisitor {
 // FilterVisitor:  visits tree and fills out structural and property filters
 /***********************************/
 
+#[derive(Default)]
 pub struct FilterVisitor {
     struct_filters: Vec<StructuralFilter>,
     attr_filters: Vec<AttributeFilter>,
     return_items: Vec<IrReturn>,
     property_references: Vec<EntityReference>,
-}
-
-impl Default for FilterVisitor {
-    fn default() -> Self {
-        FilterVisitor {
-            struct_filters: Vec::new(),
-            attr_filters: Vec::new(),
-            return_items: Vec::new(),
-            property_references: Vec::new(),
-        }
-    }
 }
 
 impl<'i> ParseTreeVisitor<'i, CypherParserContextType> for FilterVisitor {
@@ -207,7 +197,7 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
         } else {
             log::error!("Expected a right-hand side expression.");
             process::exit(1);
-        }
+        };
         self.return_items.clear();
         let attr_filter = AttributeFilter {
             node,
@@ -269,18 +259,10 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
 // ReturnVisitor: Visits tree and fills out the return functions
 /***********************************/
 
+#[derive(Default)]
 pub struct ReturnVisitor {
     return_expr: IrReturnEnum,
     obj_references: Vec<PropertyOrUDF>,
-}
-
-impl Default for ReturnVisitor {
-    fn default() -> Self {
-        ReturnVisitor {
-            return_expr: IrReturnEnum::default(),
-            obj_references: Vec::new(),
-        }
-    }
 }
 
 impl<'i> ParseTreeVisitor<'i, CypherParserContextType> for ReturnVisitor {

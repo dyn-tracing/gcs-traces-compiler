@@ -234,10 +234,8 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
         &query_data.udf_calls,
         &code_struct.id_to_property,
     );
-    code_struct.create_struct_blocks = make_struct_filter_blocks(
-        &query_data.attr_filters,
-        &query_data.struct_filters,
-    );
+    code_struct.create_struct_blocks =
+        make_struct_filter_blocks(&query_data.attr_filters, &query_data.struct_filters);
     code_struct.attribute_blocks =
         make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property);
 

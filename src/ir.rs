@@ -18,20 +18,11 @@ impl Default for StructuralFilter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq, Default)]
 pub struct AttributeFilter {
     pub node: String,
     pub property: String,
     pub value: String,
-}
-impl Default for AttributeFilter {
-    fn default() -> Self {
-        AttributeFilter {
-            node: String::new(),
-            property: String::new(),
-            value: String::new(),
-        }
-    }
 }
 
 impl AttributeFilter {

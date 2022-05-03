@@ -190,10 +190,9 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
         }
 
         // process the right node
-        let value;
-        if let Some(right_clause) = ctx.oC_PartialComparisonExpression(0) {
+        let value = if let Some(right_clause) = ctx.oC_PartialComparisonExpression(0) {
             right_clause.accept(self);
-            value = self.return_items[0].entity.clone();
+            self.return_items[0].entity.clone()
         } else {
             log::error!("Expected a right-hand side expression.");
             process::exit(1);

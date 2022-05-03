@@ -109,22 +109,12 @@ impl<'i> CypherVisitor<'i> for PropertyAndUdfVisitor {
 // FilterVisitor:  visits tree and fills out structural and property filters
 /***********************************/
 
+#[derive(Default)]
 pub struct FilterVisitor {
     struct_filters: Vec<StructuralFilter>,
     attr_filters: Vec<AttributeFilter>,
     return_items: Vec<IrReturn>,
     property_references: Vec<EntityReference>,
-}
-
-impl Default for FilterVisitor {
-    fn default() -> Self {
-        FilterVisitor {
-            struct_filters: Vec::new(),
-            attr_filters: Vec::new(),
-            return_items: Vec::new(),
-            property_references: Vec::new(),
-        }
-    }
 }
 
 impl<'i> ParseTreeVisitor<'i, CypherParserContextType> for FilterVisitor {
@@ -200,14 +190,13 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
         }
 
         // process the right node
-        let value;
-        if let Some(right_clause) = ctx.oC_PartialComparisonExpression(0) {
+        let value = if let Some(right_clause) = ctx.oC_PartialComparisonExpression(0) {
             right_clause.accept(self);
-            value = self.return_items[0].entity.clone();
+            self.return_items[0].entity.clone()
         } else {
             log::error!("Expected a right-hand side expression.");
             process::exit(1);
-        }
+        };
         self.return_items.clear();
         let attr_filter = AttributeFilter {
             node,
@@ -218,7 +207,7 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
     }
 
     fn visit_oC_PatternElement(&mut self, ctx: &OC_PatternElementContext<'i>) {
-        let struct_filter_index = self.struct_filters.len()-1;
+        let struct_filter_index = self.struct_filters.len() - 1;
         let struct_filter = &mut self.struct_filters[struct_filter_index];
 
         let mut left_node = ctx.oC_NodePattern().unwrap().oC_Variable().unwrap();
@@ -253,7 +242,7 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
     fn visit_oC_Match(&mut self, ctx: &OC_MatchContext<'i>) {
         let new_struct_filter = StructuralFilter::default();
         if ctx.OPTIONAL().is_some() {
-            // TODO:  do I use optional matches?    
+            // TODO:  do I use optional matches?
         }
         self.struct_filters.push(new_struct_filter);
         for p in ctx.oC_Pattern().unwrap().oC_PatternPart_all() {
@@ -269,18 +258,10 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
 // ReturnVisitor: Visits tree and fills out the return functions
 /***********************************/
 
+#[derive(Default)]
 pub struct ReturnVisitor {
     return_expr: IrReturnEnum,
     obj_references: Vec<PropertyOrUDF>,
-}
-
-impl Default for ReturnVisitor {
-    fn default() -> Self {
-        ReturnVisitor {
-            return_expr: IrReturnEnum::default(),
-            obj_references: Vec::new(),
-        }
-    }
 }
 
 impl<'i> ParseTreeVisitor<'i, CypherParserContextType> for ReturnVisitor {
@@ -462,17 +443,16 @@ mod tests {
         );
         let mut visitor = FilterVisitor::default();
         let _res = result.accept(&mut visitor);
-        assert!(visitor.struct_filters.len()==2);
+        assert!(visitor.struct_filters.len() == 2);
         let mut correct_vertices = IndexSet::new();
         correct_vertices.insert("a".to_string());
         correct_vertices.insert("b".to_string());
         correct_vertices.insert("c".to_string());
-        assert!(visitor.struct_filters[0].vertices==correct_vertices);
+        assert!(visitor.struct_filters[0].vertices == correct_vertices);
         let mut second_correct_vertices = IndexSet::new();
         second_correct_vertices.insert("a".to_string());
         second_correct_vertices.insert("d".to_string());
-        assert!(visitor.struct_filters[1].vertices==second_correct_vertices);
-
+        assert!(visitor.struct_filters[1].vertices == second_correct_vertices);
     }
 
     #[test]

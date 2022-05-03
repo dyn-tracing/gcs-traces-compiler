@@ -18,20 +18,11 @@ impl Default for StructuralFilter {
     }
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Serialize, PartialEq, Eq, Default)]
 pub struct AttributeFilter {
     pub node: String,
     pub property: String,
     pub value: String,
-}
-impl Default for AttributeFilter {
-    fn default() -> Self {
-        AttributeFilter {
-            node: String::new(),
-            property: String::new(),
-            value: String::new(),
-        }
-    }
 }
 
 impl AttributeFilter {
@@ -94,6 +85,7 @@ pub struct Property {
 }
 
 impl Property {
+    #[allow(dead_code)]
     pub fn as_vec_str(&self) -> String {
         // TODO: Make this a little bit less stringbuildery
         let mut lst_str = "vec![".to_string();

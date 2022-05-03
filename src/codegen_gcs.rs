@@ -7,7 +7,6 @@ use super::codegen_common::ScalarUdf;
 use super::ir::Aggregate;
 use super::ir::AttributeFilter;
 use super::ir::IrReturnEnum;
-use super::ir::Property;
 use super::ir::PropertyOrUDF;
 use super::ir::StructuralFilter;
 use super::ir::UdfCall;
@@ -22,17 +21,42 @@ use indexmap::IndexSet;
 fn make_struct_filter_blocks(
     attr_filters: &[AttributeFilter],
     struct_filters: &[StructuralFilter],
-    id_to_property: &IndexMap<String, u64>,
 ) -> Vec<String> {
-    let mut target_blocks = Vec::new();
+    let mut create_struct_blocks = Vec::new();
+    let mut vertex_num = 0;
     for struct_filter in struct_filters {
-        target_blocks.push("trace_structure query_trace;".to_string());
+        let mut vert_to_identifier = IndexMap::new();
         for vertex in &struct_filter.vertices {
             // TODO(jessica): insert vertices
+            // TODO:  there's a more efficient way to do this if I just make a map
+            let mut has_service_name = false;
+            for property_filter in attr_filters {
+                if property_filter.node == *vertex && property_filter.property == "service.name" {
+                    has_service_name = true;
+                    create_struct_blocks.push(format!(
+                        "query_trace.node_names.insert(std::make_pair({num}, {value}));\n",
+                        value = property_filter.value,
+                        num = vertex_num
+                    ));
+                }
+            }
+            if !has_service_name {
+                create_struct_blocks.push(format!(
+                    "query_trace.node_names.insert(std::make_pair({num}, {value}));\n",
+                    value = "ASTERISK_SERVICE",
+                    num = vertex_num
+                ));
+            }
+            vert_to_identifier.insert(vertex.clone(), vertex_num);
+            vertex_num += 1;
         }
 
         for edge in &struct_filter.edges {
-            // TODO(jessica): insert edges
+            create_struct_blocks.push(format!(
+                "query_trace.edges.insert(std::make_pair({v1}, {v2}));\n",
+                v1 = vert_to_identifier[&edge.0],
+                v2 = vert_to_identifier[&edge.1]
+            ))
         }
 
         for property_filter in attr_filters {
@@ -45,7 +69,7 @@ fn make_struct_filter_blocks(
             }
         }
     }
-    target_blocks
+    create_struct_blocks
 }
 
 fn make_attr_filter_blocks(
@@ -75,10 +99,7 @@ fn make_storage_rpc_value_from_trace(
     property: &str,
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
-    format!(
-        "//TODO {prop}",
-        prop = id_to_property[property]
-    )
+    format!("//TODO {prop}", prop = id_to_property[property])
 }
 
 fn make_storage_rpc_value_from_target(
@@ -86,7 +107,8 @@ fn make_storage_rpc_value_from_target(
     property: &str,
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
-    format!("//TODO {node_id} {property} {property_name}",
+    format!(
+        "//TODO {node_id} {property} {property_name}",
         node_id = entity,
         property = id_to_property[property],
         property_name = property
@@ -95,15 +117,12 @@ fn make_storage_rpc_value_from_target(
 
 fn make_return_block(
     entity_ref: &PropertyOrUDF,
-    query_data: &VisitorResults,
+    _query_data: &VisitorResults,
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
     match entity_ref {
         PropertyOrUDF::Property(prop) => match prop.parent.as_str() {
-            "trace" => make_storage_rpc_value_from_trace(
-                &prop.to_dot_string(),
-                id_to_property,
-            ),
+            "trace" => make_storage_rpc_value_from_trace(&prop.to_dot_string(), id_to_property),
             _ => make_storage_rpc_value_from_target(
                 &prop.parent,
                 &prop.to_dot_string(),
@@ -117,10 +136,7 @@ fn make_return_block(
             }
             let node = &call.args[0];
             match node.as_str() {
-                "trace" => make_storage_rpc_value_from_trace(
-                    &call.id,
-                    id_to_property,
-                ),
+                "trace" => make_storage_rpc_value_from_trace(&call.id, id_to_property),
                 _ => make_storage_rpc_value_from_target(node, &call.id, id_to_property),
             }
         }
@@ -139,46 +155,20 @@ fn make_aggr_block(
     to_return
 }
 
-fn generate_property_blocks(
-    properties: &IndexSet<Property>,
-    scalar_udf_table: &IndexMap<String, ScalarUdf>,
-    property_to_type: &IndexMap<&str, &str>,
-    id_to_property: &IndexMap<String, u64>,
-) -> Vec<String> {
-    // TODO:  here, we can have duplicates because they have different entities,
-    // but we still just need to collect one version of the property
-    let mut property_blocks = Vec::new();
-    for property in properties {
-        // There is nothing to fetch so ignore.
-        // TODO: What do we actually need here?  this is no longer relevant because we don't return traces, right?
-        if property.members.is_empty() || scalar_udf_table.contains_key(&property.to_dot_string()) {
-            continue;
-        }
-        // Now collect the property
-        let get_prop_block = format!(
-            "//TODO(jessica) {property} {property_str}",
-            property=property.as_vec_str(),
-            property_str = property.to_dot_string());
-        property_blocks.push(get_prop_block);
-    }
-    property_blocks
-}
-
 // TODO(jessica) is it still necessary to have UDFs?
 fn generate_udf_blocks(
-    scalar_udf_table: &IndexMap<String, ScalarUdf>,
-    aggregation_udf_table: &IndexMap<String, AggregationUdf>,
-    udf_calls: &IndexSet<UdfCall>,
-    id_to_property: &IndexMap<String, u64>,
+    _scalar_udf_table: &IndexMap<String, ScalarUdf>,
+    _aggregation_udf_table: &IndexMap<String, AggregationUdf>,
+    _udf_calls: &IndexSet<UdfCall>,
+    _id_to_property: &IndexMap<String, u64>,
 ) -> Vec<String> {
-    let mut udf_blocks = Vec::new();
-    udf_blocks
+    Vec::new()
 }
 
 pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) -> CodeStruct {
     // TODO: dynamically retrieve this from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/attributes
 
-    let property_to_type: IndexMap<&str, &str> = [
+    let _property_to_type: IndexMap<&str, &str> = [
         ("request.path", "String"),
         ("request.url_path", "String"),
         ("request.host", "String"),
@@ -216,7 +206,7 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
         ("listener_metadata", "metadata"),
         ("route_metadata", "metadata"),
         ("upstream_host_metadata", "metadata"),
-        ("node.metadata.WORKLOAD_NAME", "String"),
+        ("service.name", "String"),
     ]
     .iter()
     .cloned()
@@ -238,28 +228,16 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
     }
     code_struct.id_to_property = assign_id_to_property(&query_data.properties, &scalar_udf_table);
 
-    // all the properties we collect
-    code_struct.collect_properties_blocks = generate_property_blocks(
-        &query_data.properties,
-        &scalar_udf_table,
-        &property_to_type,
-        &code_struct.id_to_property,
-    );
     code_struct.udf_blocks = generate_udf_blocks(
         &scalar_udf_table,
         &aggregation_udf_table,
         &query_data.udf_calls,
         &code_struct.id_to_property,
     );
-    code_struct.target_blocks = make_struct_filter_blocks(
-        &query_data.attr_filters,
-        &query_data.struct_filters,
-        &code_struct.id_to_property,
-    );
-    code_struct.trace_lvl_prop_blocks = make_attr_filter_blocks(
-        &query_data.attr_filters,
-        &code_struct.id_to_property,
-    );
+    code_struct.create_struct_blocks =
+        make_struct_filter_blocks(&query_data.attr_filters, &query_data.struct_filters);
+    code_struct.attribute_blocks =
+        make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property);
 
     let resp_block = match query_data.return_expr {
         IrReturnEnum::PropertyOrUDF(ref entity_ref) => {
@@ -269,7 +247,7 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
             make_aggr_block(agg, &query_data, &code_struct.id_to_property)
         }
     };
-    code_struct.response_blocks.push(resp_block);
+    code_struct.return_blocks.push(resp_block);
     code_struct.aggregation_udf_table = aggregation_udf_table;
     code_struct.scalar_udf_table = scalar_udf_table;
     code_struct
@@ -351,7 +329,7 @@ mod tests {
     #[test]
     fn get_codegen_doesnt_throw_error_with_mult_periods() {
         let result = get_codegen_from_query(
-            "MATCH (a) -[]-> (b {})-[]->(c) RETURN a.node.metadata.WORKLOAD_NAME".to_string(),
+            "MATCH (a) -[]-> (b {})-[]->(c) RETURN a.service.name".to_string(),
         );
         assert!(!result.struct_filters.is_empty());
         let _codegen = generate_code_blocks(result, [COUNT.to_string()].to_vec());
@@ -359,7 +337,7 @@ mod tests {
     #[test]
     fn get_group_by() {
         let result = get_codegen_from_query(
-            "MATCH (a {}) WHERE a.node.metadata.WORKLOAD_NAME = 'productpage-v1' RETURN a.request.total_size, count(a.request.total_size)".to_string(),
+            "MATCH (a {}) WHERE a.service.name = 'productpage-v1' RETURN a.request.total_size, count(a.request.total_size)".to_string(),
         );
         assert!(!result.struct_filters.is_empty());
         // Do not throw an error parsing this expression.
@@ -369,7 +347,7 @@ mod tests {
     #[test]
     fn test_where() {
         let result = get_codegen_from_query(
-            "MATCH (a) -[]-> (b)-[]->(c) WHERE b.node.metadata.WORKLOAD_NAME = 'reviews-v1' AND trace.request.total_size = 1 RETURN a.request.total_size, avg(a.request.total_size)".to_string(),
+            "MATCH (a) -[]-> (b)-[]->(c) WHERE b.service.name = 'reviews-v1' AND trace.request.total_size = 1 RETURN a.request.total_size, avg(a.request.total_size)".to_string(),
         );
         assert!(!result.struct_filters.is_empty());
         assert!(!result.attr_filters.is_empty());

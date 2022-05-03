@@ -43,18 +43,18 @@ pub struct AggregationUdf {
 
 #[derive(Serialize)]
 pub struct CodeStruct {
-    // code blocks used in incoming requests to collect properties
-    pub collect_properties_blocks: Vec<String>,
+    // code blocks to create target graph
+    pub create_struct_blocks: Vec<String>,
+    // code blocks used to filter by attribute
+    pub attribute_blocks: Vec<String>,
+    // code blocks used to aggregate a value from traces
+    pub aggregation_blocks: Vec<String>,
+    // code blocks used to aggregate a value from traces
+    pub return_blocks: Vec<String>,
     // map of numbers to properties in order to compress the messages
     pub id_to_property: IndexMap<String, u64>,
-    // code blocks in outgoing responses, after matching
-    pub response_blocks: Vec<String>,
-    // code blocks to create target graph
-    pub target_blocks: Vec<String>,
     // code blocks to be used in outgoing responses, to compute UDF before matching
     pub udf_blocks: Vec<String>,
-    // code blocks to be used in outgoing responses, to compute UDF before matching
-    pub trace_lvl_prop_blocks: Vec<String>,
     // where we store udf implementations
     pub scalar_udf_table: IndexMap<String, ScalarUdf>,
     // where we store udf implementations
@@ -64,12 +64,12 @@ pub struct CodeStruct {
 impl CodeStruct {
     pub fn new() -> CodeStruct {
         CodeStruct {
-            collect_properties_blocks: Vec::new(),
+            create_struct_blocks: Vec::new(),
+            attribute_blocks: Vec::new(),
+            aggregation_blocks: Vec::new(),
+            return_blocks: Vec::new(),
             id_to_property: IndexMap::default(),
-            response_blocks: Vec::new(),
-            target_blocks: Vec::new(),
             udf_blocks: Vec::new(),
-            trace_lvl_prop_blocks: Vec::new(),
             scalar_udf_table: IndexMap::default(),
             aggregation_udf_table: IndexMap::default(),
         }

@@ -7,15 +7,20 @@ namespace gcs = ::google::cloud::storage;
 int structurally_defined_query(gcs::Client* client) {
     // 1. Structural Filter
     trace_structure query_trace;
-    {{#each create_struct_blocks}}{{this}}{{/each}}
+    query_trace.node_names.insert(std::make_pair(0, ASTERISK_SERVICE));
+query_trace.node_names.insert(std::make_pair(1, ASTERISK_SERVICE));
+query_trace.node_names.insert(std::make_pair(2, ASTERISK_SERVICE));
+query_trace.edges.insert(std::make_pair(0, 1));
+query_trace.edges.insert(std::make_pair(1, 2));
+
     int now = 3651500700; // this is so far in the future as to be meaningless
     std::vector<std::string> trace_ids_with_struct = get_traces_by_structure(query_trace, 0, now, client);
 
     // 2. Attribute Filter
-    {{#each attribute_blocks}}{{this}} {{/each}}
+    
 
     // 3. Aggregation
-    {{#each aggregation_blocks}}{{this}} {{/each}}
+    
 }
 
 int no_structure_query(gcs::Client* client) {
@@ -35,7 +40,7 @@ int main(int argc, char* argv[]) {
     auto client = gcs::Client();
 
     // 2. What kind of structure is this?
-    std::string query_type = "{{this.query_type}}";
+    std::string query_type = "";
     if (query_type == "structurally_defined") {
         structurally_defined_query(&client);
     } else if (query_type == "no_structure") {

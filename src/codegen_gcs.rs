@@ -21,7 +21,6 @@ use indexmap::IndexSet;
 fn make_struct_filter_blocks(
     attr_filters: &[AttributeFilter],
     struct_filters: &[StructuralFilter],
-    id_to_property: &IndexMap<String, u64>,
 ) -> Vec<String> {
     let mut create_struct_blocks = Vec::new();
     let mut vertex_num = 0;
@@ -32,33 +31,32 @@ fn make_struct_filter_blocks(
             // TODO:  there's a more efficient way to do this if I just make a map
             let mut has_service_name = false;
             for property_filter in attr_filters {
-                if property_filter.node == *vertex  && property_filter.property == "service.name" {
+                if property_filter.node == *vertex && property_filter.property == "service.name" {
                     has_service_name = true;
-                    create_struct_blocks.push(
-                        format!("query_trace.node_names.insert(std::make_pair({num}, {value}));\n",
+                    create_struct_blocks.push(format!(
+                        "query_trace.node_names.insert(std::make_pair({num}, {value}));\n",
                         value = property_filter.value,
-                        num = vertex_num)
-                    );
+                        num = vertex_num
+                    ));
                 }
             }
             if !has_service_name {
-                create_struct_blocks.push(
-                    format!("query_trace.node_names.insert(std::make_pair({num}, {value}));\n",
+                create_struct_blocks.push(format!(
+                    "query_trace.node_names.insert(std::make_pair({num}, {value}));\n",
                     value = "ASTERISK_SERVICE",
-                    num = vertex_num)
-                );
-
+                    num = vertex_num
+                ));
             }
             vert_to_identifier.insert(vertex.clone(), vertex_num);
-            vertex_num = vertex_num + 1;
+            vertex_num += 1;
         }
 
         for edge in &struct_filter.edges {
-            create_struct_blocks.push(
-                format!("query_trace.edges.insert(std::make_pair({v1}, {v2}));\n",
+            create_struct_blocks.push(format!(
+                "query_trace.edges.insert(std::make_pair({v1}, {v2}));\n",
                 v1 = vert_to_identifier[&edge.0],
-                v2 = vert_to_identifier[&edge.1])
-            )
+                v2 = vert_to_identifier[&edge.1]
+            ))
         }
 
         for property_filter in attr_filters {
@@ -101,10 +99,7 @@ fn make_storage_rpc_value_from_trace(
     property: &str,
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
-    format!(
-        "//TODO {prop}",
-        prop = id_to_property[property]
-    )
+    format!("//TODO {prop}", prop = id_to_property[property])
 }
 
 fn make_storage_rpc_value_from_target(
@@ -112,7 +107,8 @@ fn make_storage_rpc_value_from_target(
     property: &str,
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
-    format!("//TODO {node_id} {property} {property_name}",
+    format!(
+        "//TODO {node_id} {property} {property_name}",
         node_id = entity,
         property = id_to_property[property],
         property_name = property
@@ -121,15 +117,12 @@ fn make_storage_rpc_value_from_target(
 
 fn make_return_block(
     entity_ref: &PropertyOrUDF,
-    query_data: &VisitorResults,
+    _query_data: &VisitorResults,
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
     match entity_ref {
         PropertyOrUDF::Property(prop) => match prop.parent.as_str() {
-            "trace" => make_storage_rpc_value_from_trace(
-                &prop.to_dot_string(),
-                id_to_property,
-            ),
+            "trace" => make_storage_rpc_value_from_trace(&prop.to_dot_string(), id_to_property),
             _ => make_storage_rpc_value_from_target(
                 &prop.parent,
                 &prop.to_dot_string(),
@@ -143,10 +136,7 @@ fn make_return_block(
             }
             let node = &call.args[0];
             match node.as_str() {
-                "trace" => make_storage_rpc_value_from_trace(
-                    &call.id,
-                    id_to_property,
-                ),
+                "trace" => make_storage_rpc_value_from_trace(&call.id, id_to_property),
                 _ => make_storage_rpc_value_from_target(node, &call.id, id_to_property),
             }
         }
@@ -167,19 +157,18 @@ fn make_aggr_block(
 
 // TODO(jessica) is it still necessary to have UDFs?
 fn generate_udf_blocks(
-    scalar_udf_table: &IndexMap<String, ScalarUdf>,
-    aggregation_udf_table: &IndexMap<String, AggregationUdf>,
-    udf_calls: &IndexSet<UdfCall>,
-    id_to_property: &IndexMap<String, u64>,
+    _scalar_udf_table: &IndexMap<String, ScalarUdf>,
+    _aggregation_udf_table: &IndexMap<String, AggregationUdf>,
+    _udf_calls: &IndexSet<UdfCall>,
+    _id_to_property: &IndexMap<String, u64>,
 ) -> Vec<String> {
-    let mut udf_blocks = Vec::new();
-    udf_blocks
+    Vec::new()
 }
 
 pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) -> CodeStruct {
     // TODO: dynamically retrieve this from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/attributes
 
-    let property_to_type: IndexMap<&str, &str> = [
+    let _property_to_type: IndexMap<&str, &str> = [
         ("request.path", "String"),
         ("request.url_path", "String"),
         ("request.host", "String"),
@@ -248,12 +237,9 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
     code_struct.create_struct_blocks = make_struct_filter_blocks(
         &query_data.attr_filters,
         &query_data.struct_filters,
-        &code_struct.id_to_property,
     );
-    code_struct.attribute_blocks = make_attr_filter_blocks(
-        &query_data.attr_filters,
-        &code_struct.id_to_property,
-    );
+    code_struct.attribute_blocks =
+        make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property);
 
     let resp_block = match query_data.return_expr {
         IrReturnEnum::PropertyOrUDF(ref entity_ref) => {

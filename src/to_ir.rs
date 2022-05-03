@@ -218,7 +218,7 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
     }
 
     fn visit_oC_PatternElement(&mut self, ctx: &OC_PatternElementContext<'i>) {
-        let struct_filter_index = self.struct_filters.len()-1;
+        let struct_filter_index = self.struct_filters.len() - 1;
         let struct_filter = &mut self.struct_filters[struct_filter_index];
 
         let mut left_node = ctx.oC_NodePattern().unwrap().oC_Variable().unwrap();
@@ -253,7 +253,7 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
     fn visit_oC_Match(&mut self, ctx: &OC_MatchContext<'i>) {
         let new_struct_filter = StructuralFilter::default();
         if ctx.OPTIONAL().is_some() {
-            // TODO:  do I use optional matches?    
+            // TODO:  do I use optional matches?
         }
         self.struct_filters.push(new_struct_filter);
         for p in ctx.oC_Pattern().unwrap().oC_PatternPart_all() {
@@ -462,17 +462,16 @@ mod tests {
         );
         let mut visitor = FilterVisitor::default();
         let _res = result.accept(&mut visitor);
-        assert!(visitor.struct_filters.len()==2);
+        assert!(visitor.struct_filters.len() == 2);
         let mut correct_vertices = IndexSet::new();
         correct_vertices.insert("a".to_string());
         correct_vertices.insert("b".to_string());
         correct_vertices.insert("c".to_string());
-        assert!(visitor.struct_filters[0].vertices==correct_vertices);
+        assert!(visitor.struct_filters[0].vertices == correct_vertices);
         let mut second_correct_vertices = IndexSet::new();
         second_correct_vertices.insert("a".to_string());
         second_correct_vertices.insert("d".to_string());
-        assert!(visitor.struct_filters[1].vertices==second_correct_vertices);
-
+        assert!(visitor.struct_filters[1].vertices == second_correct_vertices);
     }
 
     #[test]

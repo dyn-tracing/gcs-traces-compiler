@@ -94,6 +94,7 @@ pub struct Property {
 }
 
 impl Property {
+    #[allow(dead_code)]
     pub fn as_vec_str(&self) -> String {
         // TODO: Make this a little bit less stringbuildery
         let mut lst_str = "vec![".to_string();

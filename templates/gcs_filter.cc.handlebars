@@ -8,11 +8,14 @@ int structurally_defined_query(gcs::Client* client) {
     // 1. Structural Filter
     trace_structure query_trace;
     {{#each create_struct_blocks}}{{this}}{{/each}}
-    int now = 3651500700; // this is so far in the future as to be meaningless
-    std::vector<std::string> trace_ids_with_struct = get_traces_by_structure(query_trace, 0, now, client);
 
     // 2. Attribute Filter
-    {{#each attribute_blocks}}{{this}} {{/each}}
+    std::vector<query_condition> conditions;
+    {{#each attribute_blocks}}{{this}}{{/each}}
+
+    int now = 3651500700; // this is so far in the future as to be meaningless
+    auto client = gcs::Client();
+    std::vector<std::string> total = get_traces_by_structure(query_trace, 0, now, conditions, &client);
 
     // 3. Aggregation
     {{#each aggregation_blocks}}{{this}} {{/each}}

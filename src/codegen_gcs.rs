@@ -21,11 +21,11 @@ use indexmap::IndexSet;
 fn make_struct_filter_blocks(
     attr_filters: &[AttributeFilter],
     struct_filters: &[StructuralFilter],
+    vert_to_identifier: &mut IndexMap<String, u64>
 ) -> Vec<String> {
     let mut create_struct_blocks = Vec::new();
     let mut vertex_num = 0;
     for struct_filter in struct_filters {
-        let mut vert_to_identifier = IndexMap::new();
         for vertex in &struct_filter.vertices {
             // TODO(jessica): insert vertices
             // TODO:  there's a more efficient way to do this if I just make a map
@@ -38,6 +38,7 @@ fn make_struct_filter_blocks(
                         value = property_filter.value,
                         num = vertex_num
                     ));
+
                 }
             }
             if !has_service_name {
@@ -75,24 +76,59 @@ fn make_struct_filter_blocks(
 fn make_attr_filter_blocks(
     attr_filters: &[AttributeFilter],
     id_to_property: &IndexMap<String, u64>,
+    vert_to_identifier: &IndexMap<String, u64>
 ) -> Vec<String> {
-    let mut trace_lvl_prop_blocks = Vec::new();
+    let mut prop_blocks = Vec::new();
+    let mut i = 0;
     for attr_filter in attr_filters {
         if attr_filter.node == "trace" {
             let mut prop = attr_filter.property.clone();
             if prop.starts_with('.') {
                 prop.remove(0);
             }
-            // TODO(jessica): make this into real code
+            // TODO(jessica): pretty sure this can only be trace ID
             let trace_filter_block = format!(
-                "{prop_name} {value}",
-                prop_name = id_to_property[&prop],
-                value = attr_filter.value
+                "std::string batch_name = query_index_for_traceID(client, \"{traceID}\");",
+                traceID = attr_filter.value
             );
-            trace_lvl_prop_blocks.push(trace_filter_block);
+            prop_blocks.push(trace_filter_block);
+        } else {
+            i += 1;
+            // this is a span level attribute
+            let split: Vec<&str> = attr_filter.property.split(".").collect();
+            if split.len() == 3 { // should be node name plus span plus attr
+                // this is a simple attribute check of something in the span spec
+                // TODO(jessica) expand from equality to less than/greater than checks
+                prop_blocks.push(format!("
+                    \tquery_condition condition{i};
+                    \t condition{i}.node_index {equals} {node_index},
+                    \t condition{i}.node_property_name {equals} {prop_name},
+                    \t condition{i}.node_property_value {equals} {value},
+                    \tcondition{i}.comp {equals} Equal_to;
+                    \t conditions.push_back(condition{i});
+                ",
+                i=i,
+                node_index=vert_to_identifier[&attr_filter.node],
+                equals = "\u{003D}".to_string(),
+                prop_name= split[2],
+                value = attr_filter.value
+                ));
+            } else {
+                // a few options here:  you could be doing attributes, events, or links
+                if split[1] == "attribute" {
+                    // TODO(jessica)
+                } else if split[1] == "event" {
+                    // TODO(jessica)
+                } else if split[1] == "link" {
+                    // TODO(jessica)
+
+                }
+
+            }
+
         }
     }
-    trace_lvl_prop_blocks
+    prop_blocks
 }
 
 fn make_storage_rpc_value_from_trace(
@@ -108,9 +144,8 @@ fn make_storage_rpc_value_from_target(
     id_to_property: &IndexMap<String, u64>,
 ) -> String {
     format!(
-        "//TODO {node_id} {property} {property_name}",
+        "//TODO {node_id} = {property_name}",
         node_id = entity,
-        property = id_to_property[property],
         property_name = property
     )
 }
@@ -234,10 +269,14 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
         &query_data.udf_calls,
         &code_struct.id_to_property,
     );
+    let mut vert_to_identifier = IndexMap::new();
     code_struct.create_struct_blocks =
-        make_struct_filter_blocks(&query_data.attr_filters, &query_data.struct_filters);
+        make_struct_filter_blocks(&query_data.attr_filters, &query_data.struct_filters, &mut vert_to_identifier);
     code_struct.attribute_blocks =
-        make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property);
+        make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property, &vert_to_identifier);
+    println!("len struct filter blocks {}", code_struct.create_struct_blocks.len());
+    println!("len attr filter blocks {}", code_struct.attribute_blocks.len());
+    println!("{}", code_struct.attribute_blocks[0]);
 
     let resp_block = match query_data.return_expr {
         IrReturnEnum::PropertyOrUDF(ref entity_ref) => {

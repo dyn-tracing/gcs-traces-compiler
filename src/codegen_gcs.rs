@@ -274,9 +274,6 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
         make_struct_filter_blocks(&query_data.attr_filters, &query_data.struct_filters, &mut vert_to_identifier);
     code_struct.attribute_blocks =
         make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property, &vert_to_identifier);
-    println!("len struct filter blocks {}", code_struct.create_struct_blocks.len());
-    println!("len attr filter blocks {}", code_struct.attribute_blocks.len());
-    println!("{}", code_struct.attribute_blocks[0]);
 
     let resp_block = match query_data.return_expr {
         IrReturnEnum::PropertyOrUDF(ref entity_ref) => {

@@ -13,11 +13,21 @@ query_trace.node_names.insert(std::make_pair(2, ASTERISK_SERVICE));
 query_trace.edges.insert(std::make_pair(0, 1));
 query_trace.edges.insert(std::make_pair(1, 2));
 
-    int now = 3651500700; // this is so far in the future as to be meaningless
-    std::vector<std::string> trace_ids_with_struct = get_traces_by_structure(query_trace, 0, now, client);
 
     // 2. Attribute Filter
+    std::vector<query_condition> conditions;
     
+                    	query_condition condition1;
+                    	 condition1.node_index = 0,
+                    	 condition1.node_property_name = Start_time,
+                    	 condition1.node_property_value = 5,
+                    	condition1.comp = Equal_to;
+                    	 conditions.push_back(condition1);
+                
+
+    int now = 3651500700; // this is so far in the future as to be meaningless
+    auto client = gcs::Client();
+    std::vector<std::string> total = get_traces_by_structure(query_trace, 0, now, conditions, &client);
 
     // 3. Aggregation
     

@@ -75,17 +75,17 @@ fn make_struct_filter_blocks(
 
 fn make_attr_filter_blocks(
     attr_filters: &[AttributeFilter],
-    id_to_property: &IndexMap<String, u64>,
-    vert_to_identifier: &IndexMap<String, u64>
+    property_to_type: &IndexMap<&str, &str>,
+    vert_to_identifier: &IndexMap<String, u64>,
 ) -> Vec<String> {
     let mut prop_blocks = Vec::new();
     let mut i = 0;
     for attr_filter in attr_filters {
+        let mut prop = attr_filter.property.clone();
+        if prop.starts_with('.') {
+            prop.remove(0);
+        }
         if attr_filter.node == "trace" {
-            let mut prop = attr_filter.property.clone();
-            if prop.starts_with('.') {
-                prop.remove(0);
-            }
             // TODO(jessica): pretty sure this can only be trace ID
             let trace_filter_block = format!(
                 "std::string batch_name = query_index_for_traceID(client, \"{traceID}\");",
@@ -99,19 +99,32 @@ fn make_attr_filter_blocks(
             if split.len() == 3 { // should be node name plus span plus attr
                 // this is a simple attribute check of something in the span spec
                 // TODO(jessica) expand from equality to less than/greater than checks
+                let relationship_str: &str;
+                if attr_filter.relationship == "=" {
+                    relationship_str = "Equals_to"
+                } else if attr_filter.relationship == "<" {
+                    relationship_str = "Greater_than"
+                } else {
+                    relationship_str = "Lesser_than"
+                }
                 prop_blocks.push(format!("
                     \tquery_condition condition{i};
-                    \t condition{i}.node_index {equals} {node_index},
-                    \t condition{i}.node_property_name {equals} {prop_name},
-                    \t condition{i}.node_property_value {equals} {value},
-                    \tcondition{i}.comp {equals} Equal_to;
-                    \t conditions.push_back(condition{i});
+                    \tcondition{i}.node_index {equals} {node_index},
+                    \tcondition{i}.type = {var_type}_value;
+                    \tget_value_func condition{i}_union;
+                    \tcondition{i}_union.{var_type}_func = &opentelemetry::proto::trace::v1::Span::{prop_name};
+                    \tcondition{i}.func = condition{i}_union;
+                    \tcondition{i}.node_property_value {equals} {value},
+                    \tcondition{i}.comp {equals} {relationship};
+                    \tconditions.push_back(condition{i});
                 ",
                 i=i,
                 node_index=vert_to_identifier[&attr_filter.node],
                 equals = "\u{003D}".to_string(),
                 prop_name= split[2],
-                value = attr_filter.value
+                value = attr_filter.value,
+                relationship=relationship_str,
+                var_type = property_to_type[prop.as_str()],
                 ));
             } else {
                 // a few options here:  you could be doing attributes, events, or links
@@ -203,45 +216,32 @@ fn generate_udf_blocks(
 pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) -> CodeStruct {
     // TODO: dynamically retrieve this from https://www.envoyproxy.io/docs/envoy/latest/intro/arch_overview/advanced/attributes
 
-    let _property_to_type: IndexMap<&str, &str> = [
-        ("request.path", "String"),
-        ("request.url_path", "String"),
-        ("request.host", "String"),
-        ("request.scheme", "String"),
-        ("request.method", "String"),
-        ("request.headers", "Map"),
-        ("request.referer", "String"),
-        ("request.useragent", "String"),
-        ("request.time", "Timestamp"),
-        ("request.id", "String"),
-        ("request.protocol", "String"),
-        ("request.duration", "Duration"),
-        ("request.size", "int"),
-        ("request.total_size", "int"),
-        ("response.code", "int"),
-        ("response.code_details", "String"),
-        ("response.flags", "int"),
-        ("response.grpc_status", "int"),
-        ("response.headers", "Map"),
-        ("response.trailers", "Map"),
-        ("response.size", "int"),
-        ("response.total_size", "int"),
-        ("source.address", "String"),
-        ("source.port", "int"),
-        ("destination.address", "String"),
-        ("destination.port", "int"),
-        ("connection.id", "u64"),
-        ("connection.mlts", "bool"), // More strings here
-        ("upstream.port", "int"),
-        ("metadata", "metadata"), // and more strings here
-        ("filter_state", "Map"),
-        ("node", "Node"),
-        ("cluster_metadata", "metadata"),
-        ("listener_direction", "int"),
-        ("listener_metadata", "metadata"),
-        ("route_metadata", "metadata"),
-        ("upstream_host_metadata", "metadata"),
-        ("service.name", "String"),
+    let property_to_type: IndexMap<&str, &str> = [
+        ("trace_id", "bytes"),
+        ("span.span_id", "bytes"),
+        ("span.trace_state", "string"),
+        ("span.parent_span_id", "bytes"),
+        ("span.name", "string"),
+        ("span.start_time_unix_nano", "int"),
+        ("span.end_time_unix_nano", "int"),
+        ("span.dropped_attributes_count", "int"),
+        ("span.dropped_events_count", "int"),
+        ("span.dropped_links_count", "int"),
+        ("span.attributes.key", "string"),
+        ("span.attributes.value", "bytes"),
+        ("span.event.time_unix_nano", "int"),
+        ("span.event.name", "String"),
+        ("span.event.attributes.key", "String"),
+        ("span.event.attributes.value", "bytes"),
+        ("span.event.dropped_attributes_count", "int"),
+        ("span.link.trace_id", "bytes"),
+        ("span.link.span_id", "bytes"),
+        ("span.link.trace_state", "string"),
+        ("span.link.dropped_attributes_count", "string"),
+        ("span.link.attributes.key", "string"),
+        ("span.link.attributes.value", "bytes"),
+        ("span.status.message", "string"),
+        ("span.service.name", "string"),
     ]
     .iter()
     .cloned()
@@ -273,7 +273,7 @@ pub fn generate_code_blocks(query_data: VisitorResults, udf_paths: Vec<String>) 
     code_struct.create_struct_blocks =
         make_struct_filter_blocks(&query_data.attr_filters, &query_data.struct_filters, &mut vert_to_identifier);
     code_struct.attribute_blocks =
-        make_attr_filter_blocks(&query_data.attr_filters, &code_struct.id_to_property, &vert_to_identifier);
+        make_attr_filter_blocks(&query_data.attr_filters, &property_to_type, &vert_to_identifier);
 
     let resp_block = match query_data.return_expr {
         IrReturnEnum::PropertyOrUDF(ref entity_ref) => {

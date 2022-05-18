@@ -18,11 +18,14 @@ query_trace.edges.insert(std::make_pair(1, 2));
     std::vector<query_condition> conditions;
     
                     	query_condition condition1;
-                    	 condition1.node_index = 0,
-                    	 condition1.node_property_name = Start_time,
-                    	 condition1.node_property_value = 5,
-                    	condition1.comp = Equal_to;
-                    	 conditions.push_back(condition1);
+                    	condition1.node_index = 0,
+                    	condition1.type = int_value;
+                    	get_value_func condition1_union;
+                    	condition1_union.int_func = &opentelemetry::proto::trace::v1::Span::start_time_unix_nano;
+                    	condition1.func = condition1_union;
+                    	condition1.node_property_value = 5,
+                    	condition1.comp = Lesser_than;
+                    	conditions.push_back(condition1);
                 
 
     int now = 3651500700; // this is so far in the future as to be meaningless

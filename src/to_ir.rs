@@ -190,7 +190,9 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
         }
 
         // process the right node
+        let relationship: String;
         let value = if let Some(right_clause) = ctx.oC_PartialComparisonExpression(0) {
+            relationship = right_clause.get_child(0).unwrap().get_text();
             right_clause.accept(self);
             self.return_items[0].entity.clone()
         } else {
@@ -202,6 +204,7 @@ impl<'i> CypherVisitor<'i> for FilterVisitor {
             node,
             property,
             value,
+            relationship
         };
         self.attr_filters.push(attr_filter);
     }

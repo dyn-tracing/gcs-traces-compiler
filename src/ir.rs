@@ -23,14 +23,16 @@ pub struct AttributeFilter {
     pub node: String,
     pub property: String,
     pub value: String,
+    pub relationship: String
 }
 
 impl AttributeFilter {
     #[allow(dead_code)]
-    pub fn insert_values(&mut self, node: String, property: String, value: String) {
+    pub fn insert_values(&mut self, node: String, property: String, value: String, relationship: String) {
         self.node = node;
         self.property = property;
         self.value = value;
+        self.relationship = relationship;
     }
 }
 #[derive(Clone, Debug, Serialize)]
